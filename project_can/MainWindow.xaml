@@ -24,7 +24,7 @@
             <Image Source="{Binding ViewCam}" Width="480" Height="360" HorizontalAlignment="Left"/>
         </StackPanel>
 
-        <ListView Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Margin="10"/>
+        <ListView ItemsSource="{Binding CanNames}" Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Margin="10"/>
 
         <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Center">
             <Button Command="{Binding StartCommand}" Content="시작" Width="100" Height="50" Margin="16" Background="blue" Foreground="White" FontWeight="Bold"/>

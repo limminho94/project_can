@@ -2,6 +2,7 @@
 using OpenCvSharp.Extensions;
 using project_can.ViewModel.Command;
 using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Net.Sockets;
@@ -26,6 +27,18 @@ namespace project_can.ViewModel
         private NetworkStream? _stream;
         private bool _isConnected = false; // 서버 연결 상태
 
+        // ListView 바인딩 데이터
+        private ObservableCollection<string> _canNames = new ObservableCollection<string>();
+        public ObservableCollection<string> CanNames
+        {
+            get => _canNames;
+            set
+            {
+                _canNames = value;
+                OnPropertyChanged(nameof(CanNames));
+            }
+        }
+
         // ViewCam 바인딩 속성
         public BitmapImage? ViewCam
         {
@@ -48,7 +61,7 @@ namespace project_can.ViewModel
             StopCommand = new RelayCommand(async _ => await StopCameraAsync());
         }
 
-        // 카메라 시작 (비동기)
+        // 카메라 시작
         private async Task StartCameraAsync()
         {
             if (_isCameraRunning)
@@ -75,7 +88,7 @@ namespace project_can.ViewModel
             await Task.Run(() => CaptureFramesAsync());
         }
 
-        // 서버 연결 (비동기)
+        // 서버 연결
         private async Task ConnectServerAsync()
         {
             try
@@ -85,7 +98,8 @@ namespace project_can.ViewModel
                 _stream = _tcpClient.GetStream();
                 _isConnected = true;
 
-                //MessageBox.Show("서버 연결 성공!");
+                // 서버 메시지 수신 시작
+                _ = ReceiveMessageAsync(); // 수신 함수 비동기 실행
             }
             catch (Exception ex)
             {
@@ -94,12 +108,12 @@ namespace project_can.ViewModel
             }
         }
 
-        // 프레임 캡처 및 전송 (비동기)
+        // 프레임 캡처 및 전송
         private async Task CaptureFramesAsync()
         {
             while (_isCameraRunning && _camera != null && _camera.IsOpened())
             {
-                _camera.Read(_frame); // 프레임 읽기
+                _camera.Read(_frame); 
                 if (_frame.Empty())
                     continue;
 
@@ -161,7 +175,43 @@ namespace project_can.ViewModel
             }
         }
 
-        // 카메라 중지 (비동기)
+        // 데이터 수신
+        private async Task ReceiveMessageAsync()
+        {
+            if (!_isConnected || _stream == null)
+                return;
+
+            byte[] buffer = new byte[1024]; // 메시지 버퍼
+            try
+            {
+                while (_isConnected)
+                {
+                    int bytesRead = await _stream.ReadAsync(buffer, 0, buffer.Length);
+                    if (bytesRead > 0)
+                    {
+                        // 수신된 데이터를 문자열로 변환
+                        string message = System.Text.Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            // 리스트뷰에 추가
+                            CanNames.Add(message);
+                        });
+
+                        
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show($"메시지 수신 오류: {ex.Message}");
+                });
+                _isConnected = false;
+            }
+        }
+
+        // 카메라 중지
         private async Task StopCameraAsync()
         {
             if (!_isCameraRunning)
